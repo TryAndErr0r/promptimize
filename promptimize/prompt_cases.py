@@ -1,6 +1,6 @@
 import os
 from typing import Any, Callable, List, Optional, Union
-
+from langchain.schema import PromptValue, SystemMessage, ChatMessage
 from langchain.llms import OpenAI
 from langchain.callbacks import get_openai_callback
 
@@ -25,6 +25,7 @@ class BasePromptCase:
         prompt_executor: Any = None,
         prompt_executor_kwargs: dict = None,
         prompt_hash=None,
+        input: str = "none",
         *args,
         **kwargs,
     ) -> None:
@@ -48,6 +49,7 @@ class BasePromptCase:
         self.test_results = None
         self.evaluators = evaluators or []
         self.weight = weight or 1
+        self.input = input
         self.category = category
         self.pre_run_output = None
         self.post_run_output = None
@@ -72,15 +74,14 @@ class BasePromptCase:
         return OpenAI(model_name=model_name, openai_api_key=openai_api_key)
 
     def execute_prompt(self, prompt_str):
-        with get_openai_callback() as cb:
-            self.response = self.prompt_executor(prompt_str)
-        self.execution.openai = Box()
-        oai = self.execution.openai
-        oai.total_tokens = cb.total_tokens
-        oai.prompt_tokens = cb.prompt_tokens
-        oai.completion_tokens = cb.completion_tokens
-        oai.total_cost = cb.total_cost
+        self.prompt_string = prompt_str
+        print([[ChatMessage(role='system', content=prompt_str)], self.input])
+        
+        self.response = self.prompt_executor.generate(
+            [[ChatMessage(role='system', content=prompt_str)], self.input]
+        ).generations[0][0].text
 
+        print(self.response)
         return self.response
 
     def pre_run(self):
